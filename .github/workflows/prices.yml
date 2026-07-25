@@ -1,0 +1,26 @@
+name: Daily price refresh
+
+on:
+  schedule:
+    - cron: "30 1 * * *"   # 01:30 UTC = 07:00 IST, before the Indian trading day
+  workflow_dispatch:        # allows manual "Run workflow" button
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch prices
+        run: python3 fetch_prices.py
+
+      - name: Commit prices.json if changed
+        run: |
+          git config user.name "sunoha-price-bot"
+          git config user.email "actions@github.com"
+          git add prices.json
+          git diff --cached --quiet && echo "No change" || git commit -m "Price refresh $(date -u +%F)"
+          git push
