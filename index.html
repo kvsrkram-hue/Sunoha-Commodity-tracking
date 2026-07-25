@@ -769,6 +769,30 @@ function buildPad(){
   else pinDigit(k);};
 }
 
+/* ---------------- free feed: prices.json (GitHub Actions) ---------------- */
+async function loadFeed(){
+ try{
+  const r=await fetch("prices.json",{cache:"no-store"});
+  if(!r.ok)return;
+  const j=await r.json();
+  let touched=false;
+  Object.entries(j.prices||{}).forEach(([k,v])=>{
+   if(S.prices[k]!=null&&isFinite(v)&&v>0){S.prices[k]=+v;touched=true;}});
+  Object.entries(j.macros||{}).forEach(([k,v])=>{
+   const i=S.macros.findIndex(m=>m.sym===k);
+   if(i>=0&&isFinite(v)&&v>0){S.macros[i].val=+v;touched=true;}});
+  if(touched){
+   Object.keys(HCACHE).forEach(k=>delete HCACHE[k]);
+   S.note="Auto-updated "+(j.updated||"")+" · free feed (robusta & cashew via AI sync)";
+   localStorage.setItem("al_prices",JSON.stringify(S.prices));
+   localStorage.setItem("al_macros",JSON.stringify(S.macros));
+   localStorage.setItem("al_note",S.note);
+   const n=document.getElementById("liveNote");if(n)n.textContent=S.note;
+   renderTape();renderMacros();renderChips();renderMain();
+  }
+ }catch(e){/* offline or file not yet generated — seeds/last sync stand */}
+}
+
 /* ---------------- boot ---------------- */
 let booted=false;
 function boot(){
@@ -788,6 +812,7 @@ function boot(){
  document.getElementById("resetApp").onclick=()=>{if(confirm("Wipe passcode, API key and cached prices?"))
   {localStorage.clear();location.reload();}};
  window.addEventListener("resize",()=>{if(S.tab==="overview"||S.tab==="forecast")renderMain();});
+ loadFeed();
 }
 
 buildPad();lockUI();
