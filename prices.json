@@ -1,0 +1,35 @@
+{
+ "updated": "2026-07-25 18:38 UTC",
+ "prices": {
+  "KC": 3.138,
+  "CC": 5376.0,
+  "ZW": 6.78,
+  "ZC": 4.6425,
+  "ZS": 12.48
+ },
+ "macros": {
+  "CL": 89.31,
+  "GC": 4067.6001,
+  "SI": 58.656,
+  "HG": 6.32,
+  "US10Y": 4.679,
+  "DXY": 101.47,
+  "USDINR": 96.56,
+  "FED": 3.63
+ },
+ "note": "Free feed (Stooq/Yahoo). RC robusta & CW cashew have no free exchange feed - use AI sync or broker quotes for those.",
+ "errors": [
+  "KC:from_stooq:HTTPError",
+  "CC:from_stooq:HTTPError",
+  "ZW:from_stooq:HTTPError",
+  "ZC:from_stooq:HTTPError",
+  "ZS:from_stooq:HTTPError",
+  "CL:from_stooq:HTTPError",
+  "GC:from_stooq:HTTPError",
+  "SI:from_stooq:HTTPError",
+  "HG:from_stooq:HTTPError",
+  "US10Y:from_stooq:HTTPError",
+  "DXY:from_stooq:HTTPError",
+  "USDINR:from_stooq:HTTPError"
+ ]
+}
