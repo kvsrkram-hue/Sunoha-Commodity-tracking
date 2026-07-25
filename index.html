@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#12150f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sunoha">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Sunoha — Commodity Tracking</title>
+<style>
+:root{
+  --bg:#12150f; --panel:#1b2018; --panel2:#212720; --line:#333a2e;
+  --ink:#eae6d9; --muted:#8a9184; --brass:#c9a24b; --leaf:#8faf7e;
+  --up:#79b571; --down:#d9604c;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0; padding:0; background:var(--bg); color:var(--ink);
+  font-family:-apple-system,'Segoe UI','IBM Plex Sans',Roboto,sans-serif; font-size:14.5px; line-height:1.5;}
+button,input,textarea{font-family:inherit;}
+h1,h2,h3{font-family:Georgia,'Bitter',serif; margin:0;}
+.mono{font-family:'SF Mono','IBM Plex Mono',Menlo,Consolas,monospace;}
+.hidden{display:none !important;}
+.up{color:var(--up);} .down{color:var(--down);}
+
+/* ---------- LOCK SCREEN ---------- */
+#lock{position:fixed; inset:0; background:var(--bg); z-index:100; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; padding:24px; text-align:center;}
+#lock .mark{width:64px;height:64px;border:2px solid var(--brass); border-radius:8px; display:flex;
+  align-items:center; justify-content:center; font-family:Georgia,serif; font-size:26px; font-weight:700;
+  color:var(--brass); margin-bottom:18px;}
+#lock h1{font-size:22px;} 
+#lock p{color:var(--muted); font-size:13px; max-width:300px;}
+.pin-dots{display:flex; gap:12px; margin:22px 0;}
+.pin-dots span{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--muted);}
+.pin-dots span.on{background:var(--brass); border-color:var(--brass);}
+.pin-dots.err span{border-color:var(--down); animation:shake .35s;}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.pad{display:grid; grid-template-columns:repeat(3,72px); gap:12px; justify-content:center;}
+.pad button{height:60px; border-radius:10px; background:var(--panel); border:1px solid var(--line);
+  color:var(--ink); font-size:22px; cursor:pointer;}
+.pad button:active{background:var(--panel2); border-color:var(--brass);}
+.pad button.ghost{background:none; border:none; font-size:13px; color:var(--muted);}
+#lockMsg{min-height:20px; font-size:12.5px; color:var(--muted); margin-top:8px;}
+
+/* ---------- APP SHELL ---------- */
+#app{padding-bottom:20px;}
+.tape{overflow:hidden; border-bottom:1px solid var(--line); background:var(--panel);}
+.tape-inner{display:flex; gap:24px; width:max-content; padding:6px 0; animation:tape 60s linear infinite;}
+@media (prefers-reduced-motion:reduce){.tape-inner{animation:none;}}
+@keyframes tape{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.titem{font-size:11.5px; color:var(--muted); white-space:nowrap;}
+.titem b{color:var(--ink); margin-right:5px; font-weight:600;}
+.titem.macro b{color:var(--brass);}
+
+.hd{display:flex; justify-content:space-between; align-items:center; gap:10px; padding:14px 16px 8px;}
+.eyebrow{font-size:10px; letter-spacing:.18em; text-transform:uppercase; color:var(--brass);}
+.hd h1{font-size:21px; font-weight:700;}
+.sub{color:var(--muted); font-size:11px; margin:2px 0 0;}
+.iconbtn{background:var(--panel); border:1px solid var(--line); color:var(--ink); border-radius:8px;
+  padding:9px 11px; font-size:15px; cursor:pointer;}
+.hdbtns{display:flex; gap:8px;}
+
+.btn{display:inline-flex; align-items:center; gap:7px; background:var(--panel2); color:var(--ink);
+  border:1px solid var(--line); padding:9px 14px; font-size:13px; font-weight:600; cursor:pointer; border-radius:6px;}
+.btn.brass{background:var(--brass); color:#171307; border-color:var(--brass);}
+.btn:disabled{opacity:.55;}
+.spin{display:inline-block; animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.macro{padding:8px 0 4px;}
+.mlabel{font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); padding:0 16px 6px;}
+.mscroll{display:flex; gap:9px; overflow-x:auto; padding:0 16px 8px; scrollbar-width:none;}
+.mscroll::-webkit-scrollbar{display:none;}
+.mcard{flex:0 0 auto; min-width:118px; background:var(--panel); border:1px solid var(--line);
+  border-top:2px solid var(--brass); border-radius:5px; padding:8px 11px;}
+.mname{font-size:11px; color:#c9cec2; font-weight:600;}
+.mval{font-size:16px; font-weight:600; margin:1px 0;}
+.mval span{font-size:9.5px; color:var(--brass); font-weight:400; margin-left:4px;}
+.mtag{font-size:9.5px; color:var(--muted);}
+
+.chips{display:flex; gap:8px; overflow-x:auto; padding:8px 16px 10px; scrollbar-width:none;}
+.chips::-webkit-scrollbar{display:none;}
+.chip{flex:0 0 auto; background:var(--panel); border:1px solid var(--line); border-radius:6px;
+  padding:8px 12px; cursor:pointer; color:var(--ink); text-align:left;}
+.chip.sel{border-color:var(--brass); background:var(--panel2);}
+.chip .cn{font-size:12.5px; font-weight:600;}
+.chip .cp{font-size:11.5px; color:var(--muted);}
+.chip .cp b{color:var(--ink); font-weight:600;}
+
+.panel{padding:4px 16px;}
+.phead h2{font-size:16.5px;}
+.bigprice{font-size:29px; font-weight:600; margin-top:1px;}
+.bigprice .unit{font-size:12.5px; color:var(--brass); font-weight:400;}
+.stats{display:flex; gap:18px; flex-wrap:wrap; margin-top:6px;}
+.stats label{display:block; font-size:9.5px; text-transform:uppercase; letter-spacing:.12em; color:var(--muted);}
+.stats b{font-weight:600; font-size:12.5px;}
+
+.tabs{display:flex; gap:2px; overflow-x:auto; margin:12px -16px 12px; padding:0 16px;
+  border-bottom:1px solid var(--line); scrollbar-width:none;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{flex:0 0 auto; background:none; border:none; border-bottom:2px solid transparent; color:var(--muted);
+  padding:8px 10px; font-size:12.5px; font-weight:600; cursor:pointer; white-space:nowrap;}
+.tab.on{color:var(--brass); border-bottom-color:var(--brass);}
+
+.chartbox{background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:10px 6px 2px;}
+canvas{width:100%; height:230px; display:block;}
+.rangebar{display:flex; gap:6px; align-items:center; margin-bottom:8px; flex-wrap:wrap;}
+.rbtn{background:var(--panel); border:1px solid var(--line); color:var(--muted); border-radius:5px;
+  padding:5px 10px; font-size:11.5px; font-weight:600; cursor:pointer;}
+.rbtn.on{color:var(--brass); border-color:var(--brass);}
+.rlabel{margin-left:auto; font-size:10px; color:var(--muted);}
+.zoomhint{font-size:10px; color:var(--muted); text-align:center; margin-top:5px;}
+.cbtable{width:100%; border-collapse:collapse; margin-top:10px; font-size:12.5px;}
+.cbtable th{font-size:9.5px; text-transform:uppercase; letter-spacing:.1em; color:var(--muted);
+  text-align:left; padding:6px 8px; border-bottom:1px solid var(--line);}
+.cbtable td{padding:7px 8px; border-bottom:1px solid var(--line); color:#d3d7cb;}
+.cbtable td.num{text-align:right; font-family:'SF Mono',Menlo,monospace; color:var(--ink);}
+.cbdate{display:inline-block; background:var(--panel2); border:1px solid var(--line); border-radius:4px;
+  padding:3px 9px; font-size:11px; color:var(--brass); margin:6px 0 2px;}
+.note{display:flex; gap:8px; align-items:flex-start; background:var(--panel); border:1px solid var(--line);
+  border-radius:5px; padding:9px 11px; font-size:12.5px; color:#d3d7cb; margin-top:8px;}
+.note .dot{color:var(--brass); flex:none;}
+.disclaimer{color:var(--muted); font-size:11px; margin-top:10px;}
+
+.fc-nums{display:flex; gap:20px; flex-wrap:wrap; background:var(--panel); border:1px solid var(--line);
+  border-radius:6px; padding:12px 14px; margin-top:12px;}
+.fc-nums label{display:block; font-size:9.5px; text-transform:uppercase; letter-spacing:.12em; color:var(--muted);}
+.fc-nums b{font-size:14px;}
+.fc-nums em{font-style:normal; font-size:10px; color:var(--brass); margin-left:4px;}
+
+.flowcol h4{font-family:Georgia,serif; font-size:13.5px; margin:14px 0 8px;}
+.flowcol h4 span{font-size:9.5px; color:var(--muted); font-weight:400; margin-left:6px;}
+.barrow{display:grid; grid-template-columns:104px 1fr 38px; align-items:center; gap:8px; font-size:12px; margin-bottom:6px;}
+.barname{color:#d3d7cb; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.bartrack{background:var(--panel2); height:12px; border-radius:2px; overflow:hidden;}
+.barfill{display:block; height:100%;}
+.barval{color:var(--muted); text-align:right; font-size:11px;}
+
+.aihead{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:4px 0 10px;}
+.aihead p{margin:0; flex:1; min-width:170px; font-size:13px; color:#d3d7cb;}
+.input{background:var(--panel); border:1px solid var(--line); color:var(--ink); padding:10px 12px;
+  font-size:13px; border-radius:6px; width:100%;}
+.input:focus{outline:2px solid var(--brass); outline-offset:1px;}
+textarea.input{resize:vertical; margin-bottom:10px;}
+.empty{color:var(--muted); border:1px dashed var(--line); border-radius:6px; padding:20px; text-align:center; font-size:12.5px; margin-top:8px;}
+.aitext{background:var(--panel); border:1px solid var(--line); border-left:2px solid var(--brass);
+  border-radius:5px; padding:12px 14px; margin-top:10px;}
+.aitext h5{font-size:10.5px; text-transform:uppercase; letter-spacing:.12em; color:var(--brass); margin:10px 0 3px;}
+.aitext h5:first-child{margin-top:0;}
+.aitext p{font-size:13px; color:#e0e3d8; margin:0 0 7px;}
+.alert{margin:8px 16px; padding:9px 12px; border:1px solid #6b3d33; background:#241614; color:#e5a698;
+  font-size:12px; border-radius:5px;}
+
+.ft{border-top:1px solid var(--line); margin-top:18px; padding:12px 16px; color:var(--muted); font-size:10.5px;}
+
+/* ---------- SETTINGS SHEET ---------- */
+#sheet{position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:90; display:flex; align-items:flex-end;}
+#sheet .inner{background:var(--panel); border-top:1px solid var(--line); border-radius:14px 14px 0 0;
+  width:100%; max-height:85vh; overflow-y:auto; padding:18px 16px 28px;}
+#sheet h3{font-size:16px; margin-bottom:4px;}
+#sheet .sec{margin-top:16px;}
+#sheet label{display:block; font-size:11px; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin-bottom:5px;}
+#sheet p{font-size:12px; color:var(--muted); margin:6px 0 0;}
+.row2{display:flex; gap:8px; margin-top:8px;}
+</style>
+</head>
+<body>
+
+<!-- ================= LOCK / AUTH ================= -->
+<div id="lock">
+  <div class="mark">S</div>
+  <h1 id="lockTitle">Sunoha</h1>
+  <p id="lockSub">Enter your passcode</p>
+  <div class="pin-dots" id="dots"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="pad" id="pad"></div>
+  <div id="lockMsg"></div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app" class="hidden">
+  <div class="tape"><div class="tape-inner mono" id="tape"></div></div>
+
+  <header class="hd">
+    <div>
+      <div class="eyebrow">Sunoha · agri wholesale desk</div>
+      <h1>Sunoha Ledger</h1>
+      <div class="sub" id="liveNote">Illustrative seed snapshot — tap ⟳ for live figures.</div>
+    </div>
+    <div class="hdbtns">
+      <button class="iconbtn" id="syncBtn" title="Sync live">⟳</button>
+      <button class="iconbtn" id="setBtn" title="Settings">⚙</button>
+    </div>
+  </header>
+
+  <div id="err" class="alert hidden"></div>
+
+  <section class="macro">
+    <div class="mlabel">Macro reference</div>
+    <div class="mscroll" id="macros"></div>
+  </section>
+
+  <div class="chips" id="chips"></div>
+
+  <main class="panel">
+    <div class="phead">
+      <h2 id="cname"></h2>
+      <div class="bigprice mono" id="cprice"></div>
+      <div class="stats mono" id="cstats"></div>
+    </div>
+    <div class="tabs" id="tabs"></div>
+    <div id="tabbody"></div>
+  </main>
+
+  <footer class="ft mono">
+    Informational research tool — not investment, trading or legal advice. Cashew shown as indicative
+    W320 kernel FOB (no exchange market exists). 10-year curves are approximate reconstructions from
+    public price records (monthly anchors, interpolated) — connect an exchange feed for contract-grade
+    history. Passcode protects this device only.
+  </footer>
+</div>
+
+<!-- ================= SETTINGS ================= -->
+<div id="sheet" class="hidden">
+  <div class="inner">
+    <h3>Settings</h3>
+    <div class="sec">
+      <label>Anthropic API key (for AI features)</label>
+      <input class="input" id="apiKey" type="password" placeholder="sk-ant-...">
+      <p>Needed for Sync live, Why it moved, News desk, Regulations and Fact check.
+      Get one at console.anthropic.com → API keys. Stored only on this device; calls go directly
+      from your phone to Anthropic and are billed to your account.</p>
+      <div class="row2">
+        <button class="btn brass" id="saveKey">Save key</button>
+        <button class="btn" id="clearKey">Remove key</button>
+      </div>
+    </div>
+    <div class="sec">
+      <label>Security</label>
+      <div class="row2">
+        <button class="btn" id="changePin">Change passcode</button>
+        <button class="btn" id="lockNow">Lock now</button>
+      </div>
+      <p>The passcode is hashed and stored only on this device. For multi-user cloud login,
+      see the README (Firebase upgrade path).</p>
+    </div>
+    <div class="sec">
+      <label>Data</label>
+      <button class="btn" id="resetApp">Reset app (wipe passcode, key & cached prices)</button>
+    </div>
+    <div class="sec"><button class="btn" id="closeSheet">Close</button></div>
+  </div>
+</div>
+
+<script>
+/* ================================================================
+   THE AGRI LEDGER — mobile PWA
+   ================================================================ */
+
+/* ---------------- data ---------------- */
+const COMMODITIES=[
+ {sym:"KC",name:"Coffee — Arabica (ICE NY)",short:"Arabica",group:"softs",unit:"USD / lb",price:3.35,vol:.028,seed:21,dec:2,
+  exp:[["Brazil",45],["Colombia",14],["Ethiopia",8],["Honduras",7],["Peru",5]],
+  imp:[["United States",22],["Germany",13],["Italy",7],["Japan",6],["Belgium",5]],
+  issues:[
+   "EUDR: EU-bound coffee needs plot-level geolocation proof it is deforestation-free (applies 30 Dec 2026; SMEs 30 Jun 2027).",
+   "US tariff actions on Brazilian goods (2025) whipsawed differentials before partial rollback.",
+   "Weather: Brazil frost/drought windows (May–Aug) and ENSO cycles dominate the narrative.",
+   "ICE certified stocks are a visible, market-moving inventory signal."]},
+ {sym:"RC",name:"Coffee — Robusta (ICE London)",short:"Robusta",group:"softs",unit:"USD / MT",price:3890,vol:.026,seed:22,dec:0,
+  exp:[["Vietnam",40],["Brazil (conilon)",25],["Indonesia",8],["Uganda",7],["India",5]],
+  imp:[["Germany",12],["United States",11],["Italy",10],["Spain",7],["Japan",6]],
+  issues:[
+   "Vietnam supplies ~40% of world robusta — Central Highlands weather and farmer withholding set the tone.",
+   "Brazilian conilon expansion is the structural counterweight to Vietnamese dominance.",
+   "EUDR applies equally to robusta; traceability systems are the new race.",
+   "Red Sea diversions lengthen Asia→Europe transit, widening basis."]},
+ {sym:"CC",name:"Cocoa (ICE NY)",short:"Cocoa",group:"softs",unit:"USD / MT",price:4920,vol:.032,seed:23,dec:0,
+  exp:[["Côte d'Ivoire",39],["Ghana",12],["Ecuador",10],["Cameroon",7],["Nigeria",6]],
+  imp:[["Netherlands",17],["Malaysia",10],["United States",9],["Germany",8],["Belgium",7]],
+  issues:[
+   "Two-thirds of supply from Côte d'Ivoire + Ghana, where CCC/Cocobod set regulated farmgate prices and forward-sell the crop.",
+   "Living Income Differential ($400/MT) plus origin differentials layer on top of futures for physical contracts.",
+   "EUDR: full plot traceability required for EU entry.",
+   "Swollen shoot virus, black pod and aging trees cap West African yields."]},
+ {sym:"CW",name:"Cashew — W320 kernels (FOB Vietnam)",short:"Cashew",group:"softs",unit:"USD / lb",price:3.05,vol:.008,seed:24,dec:2,
+  exp:[["Vietnam",78],["India",9],["Côte d'Ivoire",4],["Brazil",2],["Netherlands",2]],
+  imp:[["United States",27],["Germany",10],["Netherlands",9],["China",9],["UAE",6]],
+  issues:[
+   "No futures market: trades on indicative FOB kernel quotes (W320/W240) and private RCN contracts — counterparty risk IS the market.",
+   "Two-tier trade: Côte d'Ivoire ≈45% of world RCN ships raw nuts to Vietnam/India for processing into kernels.",
+   "Origin policy: CIV minimum farmgate prices, export taxes, export windows; Tanzania runs mandatory auctions.",
+   "AFI/CEPCI grade specs; EU/US aflatoxin and food-safety rules gate entry.",
+   "Cambodia is a fast-rising RCN supplier; India balances imports with Kollam-belt processing and duty policy."]},
+ {sym:"ZW",name:"Wheat (CBOT)",short:"Wheat",group:"grains",unit:"USD / bu",price:5.46,vol:.019,seed:17,dec:2,
+  exp:[["Russia",24],["European Union",14],["Canada",12],["Australia",12],["Ukraine",8]],
+  imp:[["Egypt",9],["Indonesia",8],["Turkey",6],["Algeria",5],["Philippines",5]],
+  issues:[
+   "Black Sea corridor security and insurance premia set the tone for FOB values.",
+   "Russia manages exports via floating duty and quota — a de facto global price-floor tool.",
+   "India lifted its 4-year export ban in early 2026 with a calibrated quota — policy can flip again."]},
+ {sym:"ZC",name:"Corn (CBOT)",short:"Corn",group:"grains",unit:"USD / bu",price:4.38,vol:.017,seed:18,dec:2,
+  exp:[["United States",30],["Brazil",26],["Argentina",18],["Ukraine",12],["Paraguay",3]],
+  imp:[["Mexico",17],["Japan",12],["South Korea",9],["Egypt",7],["Vietnam",7]],
+  issues:[
+   "Biofuel policy (US RFS, Brazil ethanol) is a structural demand lever.",
+   "Mexico's GM-corn dispute under USMCA affects the largest bilateral corn flow.",
+   "Brazil's safrinha weather increasingly sets the export calendar."]},
+ {sym:"ZS",name:"Soybeans (CBOT)",short:"Soybeans",group:"grains",unit:"USD / bu",price:10.9,vol:.016,seed:19,dec:2,
+  exp:[["Brazil",55],["United States",28],["Paraguay",6],["Canada",4],["Uruguay",3]],
+  imp:[["China",60],["European Union",10],["Mexico",5],["Egypt",3],["Japan",3]],
+  issues:[
+   "China buys ~60% of traded beans — tariff politics redirect flows to Brazil.",
+   "EUDR puts soy in scope; geolocation traceability for EU entry.",
+   "Argentina's export tax changes crush margins and meal/oil flows."]}
+];
+const MACROS=[
+ {sym:"CL",name:"WTI Crude",unit:"USD/bbl",val:62.4,dec:2,tag:"freight & energy cost"},
+ {sym:"GC",name:"Gold",unit:"USD/ozt",val:4285,dec:0,tag:"risk / liquidity gauge"},
+ {sym:"SI",name:"Silver",unit:"USD/ozt",val:51.8,dec:2,tag:"risk metal"},
+ {sym:"HG",name:"Copper",unit:"USD/lb",val:5.12,dec:2,tag:"global growth proxy"},
+ {sym:"FED",name:"Fed Funds",unit:"% (mid)",val:3.63,dec:2,tag:"USD funding cost"},
+ {sym:"US10Y",name:"US 10-yr",unit:"%",val:4.12,dec:2,tag:"financing benchmark"},
+ {sym:"DXY",name:"Dollar index",unit:"index",val:98.7,dec:1,tag:"USD strength"},
+ {sym:"USDINR",name:"USD / INR",unit:"₹/USD",val:88.2,dec:2,tag:"import parity (India)"}
+];
+
+/* ---------------- state ---------------- */
+const S={
+ sel:"KC", tab:"overview",
+ prices:JSON.parse(localStorage.getItem("al_prices")||"null")||Object.fromEntries(COMMODITIES.map(c=>[c.sym,c.price])),
+ macros:JSON.parse(localStorage.getItem("al_macros")||"null")||MACROS.map(m=>({...m})),
+ note:localStorage.getItem("al_note")||"Illustrative seed snapshot — tap ⟳ for live figures.",
+ drivers:{}, news:"", regs:{}, busy:{}, views:{}, cb:null
+};
+
+/* ---------------- helpers ---------------- */
+function rng(a){return function(){a|=0;a=(a+0x6d2b79f5)|0;let t=Math.imul(a^(a>>>15),1|a);
+ t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296;};}
+
+/* 10-year monthly anchors [monthsAgo, price] — approximate reconstruction from
+   public price records; interpolated daily with seeded noise. The last point is
+   pinned to the current (seed or live-synced) price. For contract-grade history,
+   connect an exchange data feed. */
+const ANCHORS={
+ KC:[[120,1.45],[114,1.40],[108,1.30],[102,1.15],[96,1.02],[90,.98],[84,1.05],[78,1.15],[72,1.28],[66,1.52],[62,1.90],[58,2.05],[54,2.35],[50,2.25],[46,2.20],[42,1.95],[38,1.75],[34,1.62],[30,1.85],[27,2.10],[24,2.35],[21,2.55],[19,3.10],[17,3.60],[16,4.20],[14,3.90],[12,3.05],[9,3.10],[6,3.40],[3,3.20]],
+ RC:[[120,1900],[108,2050],[96,1750],[90,1500],[84,1350],[78,1300],[72,1400],[66,1650],[60,1800],[54,2100],[48,2050],[42,1900],[36,2450],[30,2600],[27,3200],[24,3800],[21,4400],[19,5000],[17,5500],[16,5800],[14,5200],[12,3600],[9,4400],[6,4100],[3,3700]],
+ CC:[[120,3000],[108,2100],[96,2250],[90,2300],[84,2450],[78,2350],[72,2500],[66,2600],[60,2450],[54,2350],[48,2600],[42,3050],[36,3450],[32,4200],[28,6500],[27,9500],[26,11200],[24,7800],[22,7000],[20,7800],[19,12200],[17,10500],[15,9200],[12,8200],[10,7400],[8,6000],[7,5300],[5,4700],[3,4600],[1,4800]],
+ CW:[[120,4.30],[114,4.60],[108,4.90],[104,5.00],[96,4.20],[90,3.60],[84,3.40],[78,3.30],[72,3.10],[66,2.95],[60,3.00],[54,3.10],[48,3.05],[42,2.95],[36,2.80],[30,2.70],[24,2.65],[18,2.80],[12,3.00],[6,3.15],[3,3.10]],
+ ZW:[[120,4.70],[108,4.30],[96,5.00],[90,4.60],[84,5.20],[78,5.50],[72,5.60],[66,6.50],[60,7.20],[55,7.80],[52,11.0],[50,10.2],[48,8.30],[44,7.60],[40,7.00],[36,6.20],[30,5.90],[24,5.50],[18,5.40],[12,5.60],[6,5.30]],
+ ZC:[[120,3.55],[108,3.60],[96,3.75],[84,3.85],[78,3.30],[72,4.10],[66,5.50],[60,5.90],[55,7.20],[52,7.60],[48,6.80],[44,6.60],[40,6.50],[36,5.00],[30,4.70],[24,4.20],[18,4.10],[12,4.20],[6,4.50]],
+ ZS:[[120,9.7],[108,9.4],[96,8.9],[84,8.8],[78,9.0],[72,11.5],[66,13.5],[60,12.8],[55,16.6],[52,17.0],[48,14.2],[44,14.8],[40,14.0],[36,13.0],[30,12.0],[24,11.2],[18,10.3],[12,10.5],[6,10.6]]
+};
+const YEARS=10, NDAYS=Math.round(YEARS*365.25);
+function history(c,price){
+ const anchors=[...ANCHORS[c.sym].map(a=>[a[0]*30.44,a[1]]),[0,price]] // [daysAgo, price]
+  .sort((a,b)=>b[0]-a[0]);
+ const r=rng(c.seed*7919);
+ const base=i=>{ // i = index 0..NDAYS-1, daysAgo = NDAYS-1-i
+  const da=NDAYS-1-i;
+  let k=0;while(k<anchors.length-1&&anchors[k+1][0]>da)k++;
+  if(da>=anchors[0][0])return anchors[0][1];
+  const [d0,p0]=anchors[k],[d1,p1]=anchors[k+1];
+  const f=(d0-da)/(d0-d1||1);
+  return p0+(p1-p0)*(0.5-0.5*Math.cos(Math.PI*f)); // smooth interp
+ };
+ const out=new Array(NDAYS);let noise=0;
+ const today=new Date();
+ for(let i=0;i<NDAYS;i++){
+  const u1=Math.max(r(),1e-9),u2=r();
+  const z=Math.sqrt(-2*Math.log(u1))*Math.cos(2*Math.PI*u2);
+  noise=0.97*noise+z*c.vol*0.55;
+  const damp=Math.min(1,(NDAYS-1-i)/20); // pin the tail to current price
+  const b=base(i);
+  const d=new Date(today);d.setDate(d.getDate()-(NDAYS-1-i));
+  out[i]={t:d.toISOString().slice(0,10),y:Math.max(b*(1+noise*damp),b*0.2)};
+ }
+ out[NDAYS-1].y=price;
+ return out;
+}
+const HCACHE={};
+function histC(sym){
+ const c=COMMODITIES.find(x=>x.sym===sym),p=S.prices[sym];
+ if(!HCACHE[sym]||HCACHE[sym].p!==p)HCACHE[sym]={p,h:history(c,p)};
+ return HCACHE[sym].h;
+}
+function holt(h,H=30){
+ const y=h.map(d=>d.y),a=.32,b=.06;let L=y[0],T=y[1]-y[0];const fit=[L];
+ for(let i=1;i<y.length;i++){const pl=L;L=a*y[i]+(1-a)*(L+T);T=b*(L-pl)+(1-b)*T;fit.push(L+T);}
+ const res=y.map((v,i)=>v-fit[Math.max(0,i-1)]).slice(10);
+ const sd=Math.sqrt(res.reduce((s,r)=>s+r*r,0)/res.length);
+ const last=new Date(h[h.length-1].t),out=[];
+ for(let k=1;k<=H;k++){const d=new Date(last);d.setDate(d.getDate()+k);
+  const m=L+T*k,band=1.28*sd*Math.sqrt(k);
+  out.push({t:d.toISOString().slice(0,10),fc:m,lo:m-band,hi:m+band});}
+ return out;
+}
+const fmtN=(v,dec)=>v>=1000?v.toLocaleString(undefined,{maximumFractionDigits:0}):v.toFixed(dec);
+function hist(sym){return histC(sym);}
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+
+/* ---------------- Anthropic API ---------------- */
+async function askClaude(prompt,maxTokens){
+ const key=localStorage.getItem("al_key");
+ if(!key)throw new Error("Add your Anthropic API key in Settings (⚙) to use AI features.");
+ const res=await fetch("https://api.anthropic.com/v1/messages",{
+  method:"POST",
+  headers:{"Content-Type":"application/json","x-api-key":key,
+   "anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+  body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:maxTokens||1000,
+   messages:[{role:"user",content:prompt}],
+   tools:[{type:"web_search_20250305",name:"web_search"}]})});
+ if(!res.ok){const t=await res.text().catch(()=>"");throw new Error("API "+res.status+(t?": "+t.slice(0,140):""));}
+ const data=await res.json();
+ return (data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n").trim();
+}
+function showErr(m){const e=document.getElementById("err");e.textContent=m;e.classList.remove("hidden");
+ setTimeout(()=>e.classList.add("hidden"),9000);}
+
+/* ---------------- render: tape, macros, chips ---------------- */
+function renderTape(){
+ const mk=()=>COMMODITIES.map(c=>{const h=hist(c.sym),p=h[h.length-1].y,
+  d=(p-h[h.length-2].y)/h[h.length-2].y*100;
+  return`<span class="titem"><b>${c.short}</b>${fmtN(p,c.dec)} <i class="${d>=0?'up':'down'}">${d>=0?'▲':'▼'}${Math.abs(d).toFixed(2)}%</i></span>`;
+ }).join("")+S.macros.map(m=>`<span class="titem macro"><b>${m.sym}</b>${fmtN(m.val,m.dec)}</span>`).join("");
+ document.getElementById("tape").innerHTML=mk()+mk();
+}
+function renderMacros(){
+ document.getElementById("macros").innerHTML=S.macros.map(m=>
+  `<div class="mcard"><div class="mname">${m.name}</div>
+   <div class="mval mono">${fmtN(m.val,m.dec)}<span>${m.unit}</span></div>
+   <div class="mtag">${m.tag}</div></div>`).join("");
+}
+function renderChips(){
+ document.getElementById("chips").innerHTML=COMMODITIES.map(c=>{
+  const h=hist(c.sym),p=h[h.length-1].y,d=(p-h[h.length-2].y)/h[h.length-2].y*100;
+  return`<button class="chip ${S.sel===c.sym?'sel':''}" data-sym="${c.sym}">
+   <div class="cn">${c.short}</div>
+   <div class="cp mono"><b>${fmtN(p,c.dec)}</b> <span class="${d>=0?'up':'down'}">${d>=0?'▲':'▼'}${Math.abs(d).toFixed(1)}%</span></div>
+  </button>`;}).join("");
+ document.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{S.sel=b.dataset.sym;renderMain();renderChips();});
+}
+
+/* ---------------- render: main panel ---------------- */
+const TABS=[["overview","Overview"],["forecast","Forecast"],["flows","Trade flows"],
+ ["drivers","Why it moved"],["news","News desk"],["india","India desk"],
+ ["regs","Regulations"],["fact","Fact check"]];
+
+function renderMain(){
+ const c=COMMODITIES.find(x=>x.sym===S.sel),h=hist(S.sel);
+ const p=h[h.length-1].y;
+ const d1=(p-h[h.length-2].y)/h[h.length-2].y*100;
+ const d30=(p-h[h.length-31].y)/h[h.length-31].y*100;
+ const yr=h.slice(-365);
+ const hi=Math.max(...yr.map(x=>x.y)),lo=Math.min(...yr.map(x=>x.y));
+ document.getElementById("cname").textContent=c.name;
+ document.getElementById("cprice").innerHTML=fmtN(p,c.dec)+` <span class="unit">${c.unit}</span>`;
+ document.getElementById("cstats").innerHTML=
+  `<div><label>1d</label><b class="${d1>=0?'up':'down'}">${d1>=0?'▲':'▼'}${Math.abs(d1).toFixed(2)}%</b></div>
+   <div><label>30d</label><b class="${d30>=0?'up':'down'}">${d30>=0?'▲':'▼'}${Math.abs(d30).toFixed(2)}%</b></div>
+   <div><label>1y hi</label><b>${fmtN(hi,c.dec)}</b></div>
+   <div><label>1y lo</label><b>${fmtN(lo,c.dec)}</b></div>`;
+ document.getElementById("tabs").innerHTML=TABS.map(([id,l])=>
+  `<button class="tab ${S.tab===id?'on':''}" data-t="${id}">${l}</button>`).join("");
+ document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{S.tab=b.dataset.t;renderMain();});
+ renderTab(c,h);
+}
+
+function renderTab(c,h){
+ const body=document.getElementById("tabbody");
+ if(S.tab==="overview"||S.tab==="forecast"){
+  const R=[["6M",183],["1Y",365],["3Y",1096],["5Y",1827],["10Y",NDAYS]];
+  body.innerHTML=`<div class="rangebar">
+    ${R.map(([l,d])=>`<button class="rbtn" data-d="${d}">${l}</button>`).join("")}
+    <span class="rlabel mono" id="rlabel"></span></div>
+   <div class="chartbox"><canvas id="cv"></canvas></div>
+   <div class="zoomhint">Pinch to zoom · drag to pan · buttons for presets</div>
+   <div id="under"></div>`;
+  if(!S.views[c.sym])S.views[c.sym]={span:365,end:h.length-1};
+  document.querySelectorAll(".rbtn").forEach(b=>b.onclick=()=>{
+   S.views[c.sym]={span:+b.dataset.d,end:h.length-1};drawChart(c,h,S.tab==="forecast");});
+  drawChart(c,h,S.tab==="forecast");
+  attachZoom(c,h);
+  const u=document.getElementById("under");
+  if(S.tab==="overview"){
+   u.innerHTML=c.issues.slice(0,2).map(n=>`<div class="note"><span class="dot">◆</span><span>${n}</span></div>`).join("");
+  }else{
+   const f=holt(h),last=f[f.length-1];
+   u.innerHTML=`<div class="fc-nums mono">
+     <div><label>30-day projection</label><b>${fmtN(last.fc,c.dec)}</b><em>${c.unit}</em></div>
+     <div><label>80% range</label><b>${fmtN(last.lo,c.dec)} – ${fmtN(last.hi,c.dec)}</b></div>
+     <div><label>Method</label><b>Holt smoothing</b><em>α .32 · β .06</em></div></div>
+    <p class="disclaimer">Statistical extrapolation only — it cannot see a Brazilian frost, an Ivorian export decree
+    or a tariff announcement. Pair with News desk & Regulations. Informational, not investment advice.</p>`;
+  }
+ }
+ else if(S.tab==="flows"){
+  const bars=(rows,col)=>{const mx=Math.max(...rows.map(r=>r[1]));
+   return rows.map(([n,s])=>`<div class="barrow"><span class="barname">${n}</span>
+    <span class="bartrack"><span class="barfill" style="width:${s/mx*100}%;background:${col}"></span></span>
+    <span class="barval mono">${s}%</span></div>`).join("");};
+  body.innerHTML=`<div class="flowcol"><h4>Top exporters <span>share of world exports</span></h4>${bars(c.exp,'#c9a24b')}</div>
+   <div class="flowcol"><h4>Top importers <span>share of world imports</span></h4>${bars(c.imp,'#8faf7e')}</div>
+   <div class="flowcol"><h4>Structural notes for traders</h4>
+   ${c.issues.map(n=>`<div class="note"><span class="dot">◆</span><span>${n}</span></div>`).join("")}
+   <p class="disclaimer">Shares are approximate recent-year figures for orientation — verify with UN Comtrade / ITC Trade Map before contracting.</p></div>`;
+ }
+ else if(S.tab==="drivers"){
+  body.innerHTML=`<div class="aihead"><p>Live scan: what actually moved ${c.short} this week, with sources.</p>
+   <button class="btn" id="drvBtn">${S.busy.drv?'<span class="spin">⟳</span> Reading…':(S.drivers[c.sym]?'Refresh analysis':'Analyse drivers')}</button></div>
+   ${S.drivers[c.sym]?aiHTML(S.drivers[c.sym]):(S.busy.drv?'':'<div class="empty">No analysis yet. Run a scan to pull current reporting on '+c.name+'.</div>')}`;
+  document.getElementById("drvBtn").onclick=async()=>{S.busy.drv=1;renderTab(c,h);
+   try{S.drivers[c.sym]=await askClaude(`Search the web for the most recent news on ${c.name} prices. In under 250 words explain: (1) direction and rough size of the move this week, (2) the 3-4 main drivers (supply, demand, policy, weather, freight), (3) one thing wholesale physical traders should watch next. Short labelled sections; cite source names inline in parentheses.`);}
+   catch(e){showErr(e.message);}S.busy.drv=0;renderTab(c,h);};
+ }
+ else if(S.tab==="news"){
+  body.innerHTML=`<div class="aihead"><p>Morning digest across the whole desk — arabica, robusta, cocoa, cashew and grains.</p>
+   <button class="btn brass" id="newsBtn">${S.busy.news?'<span class="spin">⟳</span> Scanning…':(S.news?'Refresh digest':'Scan the wires')}</button></div>
+   ${S.news?aiHTML(S.news):(S.busy.news?'':'<div class="empty">One scan covers supply shocks, export decrees, tariffs, EUDR, weather and freight.</div>')}
+   <p class="disclaimer">AI-assembled from public reporting — verify anything contract-critical via Fact check or the primary source.</p>`;
+  document.getElementById("newsBtn").onclick=async()=>{S.busy.news=1;renderTab(c,h);
+   try{S.news=await askClaude(`Search the web for news from the past week affecting these agri commodities: Arabica coffee, Robusta coffee, cocoa, cashew (RCN and kernels), wheat, corn, soybeans. Produce a trader's digest under 400 words: group by commodity; for each give 1-3 dated headline summaries with source name in parentheses and ONE line on likely price/trade impact. Prioritise supply shocks, export policy, tariffs, EUDR, weather, freight. Label each commodity section with its name followed by a colon.`,1500);}
+   catch(e){showErr(e.message);}S.busy.news=0;renderTab(c,h);};
+ }
+ else if(S.tab==="india"){
+  const cb=S.cb;
+  body.innerHTML=`<div class="aihead">
+    <p>Coffee Board of India — <b>Daily Coffee Market Report</b> (published open on
+    coffeeboard.gov.in → Market Info). Fetches today's grade-wise Indian prices plus
+    ICE terminal levels and renders them here.</p>
+    <button class="btn brass" id="cbBtn">${S.busy.cb?'<span class="spin">⟳</span> Retrieving report…':(cb?'Refresh report':'Fetch latest report')}</button>
+   </div>
+   ${cb?renderCB(cb):(S.busy.cb?'':'<div class="empty">No report loaded yet. The Board publishes trading-day prices for Arabica Plantation, Arabica/Robusta Parchment and Cherry grades, alongside ICE New York & London terminal levels.</div>')}
+   <div class="note"><span class="dot">ℹ</span><span>The Board's PDF sits behind a session link (no fixed URL),
+    so retrieval runs through AI web search reading the published figures rather than a direct download.
+    Archives remain on the Board's Market Info page. Always cross-check a figure before contracting.</span></div>`;
+  document.getElementById("cbBtn").onclick=async()=>{S.busy.cb=1;renderTab(c,h);
+   try{
+    const txt=await askClaude(
+     `Search the web for the LATEST Coffee Board of India Daily Coffee Market Report prices (source: coffeeboard.gov.in Market Info page; mirrors such as commoditymarketlive.com republish the Board's grade-wise daily prices). Respond ONLY with JSON, no prose, no markdown fences, in this exact shape:
+{"date":"<report date>","indian":[{"name":"<grade e.g. Arabica Plantation AA>","inr_per_kg":<number>}],"terminals":{"ice_ny_arabica_usc_lb":<number or null>,"ice_london_robusta_usd_mt":<number or null>},"note":"<one line on the day's tone>"}
+Include every Arabica Plantation, Arabica Parchment, Arabica Cherry, Robusta Parchment and Robusta Cherry grade you can find with its INR per kg price. If a value is per 50-kg bag, convert to per kg.`,1400);
+    const m=txt.match(/\{[\s\S]*\}/);S.cb=JSON.parse(m?m[0]:txt);
+   }catch(e){showErr("Coffee Board fetch failed: "+e.message);}
+   S.busy.cb=0;renderTab(c,h);};
+ }
+ else if(S.tab==="regs"){
+  const key=c.sym+"|"+(S.regCountry||"global");
+  body.innerHTML=`<h4 style="font-family:Georgia,serif;font-size:13.5px;margin:4px 0 8px">Known regulatory terrain</h4>
+   ${c.issues.map(n=>`<div class="note"><span class="dot">§</span><span>${n}</span></div>`).join("")}
+   <div class="aihead" style="margin-top:14px">
+    <input class="input" id="regC" placeholder="Focus country (optional) — e.g. India, EU, Vietnam" value="${esc(S.regCountry||'')}" style="flex:1">
+   </div>
+   <button class="btn" id="regBtn">${S.busy.regs?'<span class="spin">⟳</span> Checking rulebooks…':'Deep-dive current rules'}</button>
+   ${S.regs[key]?aiHTML(S.regs[key]):""}
+   <p class="disclaimer">A starting point, not legal advice — confirm with customs brokers and counsel per shipment.</p>`;
+  document.getElementById("regC").onchange=e=>{S.regCountry=e.target.value;};
+  document.getElementById("regBtn").onclick=async()=>{S.regCountry=document.getElementById("regC").value;
+   S.busy.regs=1;renderTab(c,h);
+   const k2=c.sym+"|"+(S.regCountry||"global");
+   const scope=S.regCountry?`for trade between ${S.regCountry} and the rest of the world`:"globally";
+   try{S.regs[k2]=await askClaude(`Search the web for current (2025-2026) regulations, tariffs, export/import restrictions, quality/traceability standards and licensing requirements affecting wholesale trade in ${c.name} ${scope}. In under 250 words list the concrete rules a physical trader must comply with, who enforces each, and pending changes. Label each item with the jurisdiction.`);}
+   catch(e){showErr(e.message);}S.busy.regs=0;renderTab(c,h);};
+ }
+ else if(S.tab==="fact"){
+  body.innerHTML=`<p style="font-size:13px;color:#d3d7cb;margin:4px 0 10px">Paste a market claim — from a broker, a headline, a counterparty — and verify it against current sources.</p>
+   <textarea class="input" id="claim" rows="3" placeholder='e.g. "Côte d&#39;Ivoire has suspended RCN exports"'>${esc(S.claim||'')}</textarea>
+   <button class="btn brass" id="factBtn">${S.busy.fact?'<span class="spin">⟳</span> Verifying…':'Fact-check claim'}</button>
+   ${S.fact?aiHTML(S.fact):""}`;
+  document.getElementById("claim").oninput=e=>{S.claim=e.target.value;};
+  document.getElementById("factBtn").onclick=async()=>{if(!(S.claim||"").trim())return;
+   S.busy.fact=1;S.fact="";renderTab(c,h);
+   try{S.fact=await askClaude(`Fact-check this claim about commodity markets using web search: "${S.claim}". Respond with: VERDICT (True / Mostly true / Mixed / False / Unverifiable), a 2-3 sentence explanation of what the evidence shows, and the names of 2-3 sources you relied on.`);}
+   catch(e){showErr(e.message);}S.busy.fact=0;renderTab(c,h);};
+ }
+}
+function renderCB(cb){
+ const rows=(cb.indian||[]).map(r=>
+  `<tr><td>${esc(String(r.name||""))}</td><td class="num">${isFinite(r.inr_per_kg)?"₹ "+(+r.inr_per_kg).toFixed(2):"—"}</td></tr>`).join("");
+ const t=cb.terminals||{};
+ const term=[
+  isFinite(t.ice_ny_arabica_usc_lb)?`<tr><td>ICE New York — Arabica</td><td class="num">${(+t.ice_ny_arabica_usc_lb).toFixed(2)} USc/lb</td></tr>`:"",
+  isFinite(t.ice_london_robusta_usd_mt)?`<tr><td>ICE London — Robusta</td><td class="num">$ ${(+t.ice_london_robusta_usd_mt).toFixed(0)}/MT</td></tr>`:""
+ ].join("");
+ return `<div class="cbdate">Report date: ${esc(String(cb.date||"—"))}</div>
+  <table class="cbtable"><tr><th>Indian grade</th><th style="text-align:right">Price / kg</th></tr>${rows||'<tr><td colspan="2">No grade rows returned.</td></tr>'}</table>
+  ${term?`<table class="cbtable"><tr><th>Terminal market</th><th style="text-align:right">Level</th></tr>${term}</table>`:""}
+  ${cb.note?`<p class="disclaimer">${esc(String(cb.note))}</p>`:""}`;
+}
+function aiHTML(text){
+ return `<div class="aitext">`+text.split(/\n+/).map(p=>{
+  const cl=p.replace(/^[#*\-•\s]+/,"").trim();if(!cl)return"";
+  const head=/^[A-Z0-9].{0,60}:$/.test(cl)||/^#+\s/.test(p);
+  return head?`<h5>${esc(cl.replace(/:$/,""))}</h5>`:`<p>${esc(cl)}</p>`;}).join("")+`</div>`;
+}
+
+/* ---------------- chart: 10y window, zoom & pan ---------------- */
+function drawChart(c,h,withFc){
+ const cv=document.getElementById("cv");if(!cv)return;
+ const dpr=window.devicePixelRatio||1;
+ const W=cv.clientWidth||cv.parentElement.clientWidth,H=230;
+ cv.width=W*dpr;cv.height=H*dpr;
+ const g=cv.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);
+ g.clearRect(0,0,W,H);
+ const v=S.views[c.sym]||(S.views[c.sym]={span:365,end:h.length-1});
+ v.span=Math.max(30,Math.min(NDAYS,v.span));
+ v.end=Math.max(v.span-1,Math.min(h.length-1,v.end));
+ const start=v.end-v.span+1;
+ // decimate visible slice to ~2 points per px
+ const raw=h.slice(start,v.end+1);
+ const stride=Math.max(1,Math.floor(raw.length/(W*2)));
+ const hh=stride>1?raw.filter((_,i)=>i%stride===0||i===raw.length-1):raw;
+ const showFc=withFc&&v.end>=h.length-1;
+ const fc=showFc?holt(h.slice(-Math.min(365,h.length))):[];
+ const ys=hh.map(d=>d.y);
+ const lo=fc.length?Math.min(...ys,...fc.map(f=>f.lo)):Math.min(...ys);
+ const hi=fc.length?Math.max(...ys,...fc.map(f=>f.hi)):Math.max(...ys);
+ const pad={l:48,r:8,t:10,b:22},iw=W-pad.l-pad.r,ih=H-pad.t-pad.b;
+ const N=hh.length+fc.length;
+ const X=i=>pad.l+i/(N-1||1)*iw, Y=val=>pad.t+(1-(val-lo)/(hi-lo||1))*ih;
+ // grid + y labels
+ g.strokeStyle="#2b2f27";g.fillStyle="#81887a";g.font="10px Menlo,monospace";g.lineWidth=1;
+ for(let k=0;k<=4;k++){const val=lo+(hi-lo)*k/4,y=Y(val);
+  g.setLineDash([2,6]);g.beginPath();g.moveTo(pad.l,y);g.lineTo(W-pad.r,y);g.stroke();g.setLineDash([]);
+  g.fillText(val>=100?val.toFixed(0):val.toFixed(2),4,y+3);}
+ // x labels: month-year when span>2y else month-day
+ const fmtT=t=>v.span>730?t.slice(0,7):t.slice(5);
+ [0,Math.floor((N-1)/2),N-1].forEach(i=>{
+  const t=i<hh.length?hh[i].t:fc[i-hh.length].t;
+  g.fillText(fmtT(t),Math.min(X(i)-4,W-52),H-6);});
+ if(fc.length){
+  g.beginPath();
+  fc.forEach((f,i)=>{const x=X(hh.length+i);i?g.lineTo(x,Y(f.hi)):g.moveTo(x,Y(f.hi));});
+  for(let i=fc.length-1;i>=0;i--)g.lineTo(X(hh.length+i),Y(fc[i].lo));
+  g.closePath();g.fillStyle="rgba(201,162,75,.13)";g.fill();
+  g.strokeStyle="#3f4637";g.setLineDash([3,3]);g.beginPath();
+  g.moveTo(X(hh.length-1),pad.t);g.lineTo(X(hh.length-1),H-pad.b);g.stroke();g.setLineDash([]);
+ }
+ g.strokeStyle="#eae6d9";g.lineWidth=1.5;g.beginPath();
+ hh.forEach((d,i)=>{i?g.lineTo(X(i),Y(d.y)):g.moveTo(X(i),Y(d.y));});g.stroke();
+ if(fc.length){
+  g.strokeStyle="#c9a24b";g.lineWidth=1.8;g.setLineDash([5,4]);g.beginPath();
+  g.moveTo(X(hh.length-1),Y(hh[hh.length-1].y));
+  fc.forEach((f,i)=>g.lineTo(X(hh.length+i),Y(f.fc)));g.stroke();g.setLineDash([]);
+ }
+ const rl=document.getElementById("rlabel");
+ if(rl)rl.textContent=raw[0].t+" → "+raw[raw.length-1].t;
+ document.querySelectorAll(".rbtn").forEach(b=>
+  b.classList.toggle("on",+b.dataset.d===v.span&&v.end===h.length-1));
+}
+
+/* pinch-zoom + drag-pan */
+function attachZoom(c,h){
+ const cv=document.getElementById("cv");if(!cv)return;
+ const P=new Map();let last=null;
+ const v=()=>S.views[c.sym];
+ const redraw=()=>drawChart(c,h,S.tab==="forecast");
+ cv.style.touchAction="none";
+ cv.onpointerdown=e=>{cv.setPointerCapture(e.pointerId);P.set(e.pointerId,e.clientX);last=null;};
+ cv.onpointerup=cv.onpointercancel=e=>{P.delete(e.pointerId);last=null;};
+ cv.onpointermove=e=>{
+  if(!P.has(e.pointerId))return;
+  P.set(e.pointerId,e.clientX);
+  const xs=[...P.values()];
+  if(xs.length===1){ // pan
+   if(last!=null){
+    const dx=e.clientX-last, per=v().span/(cv.clientWidth||300);
+    v().end=Math.max(v().span-1,Math.min(h.length-1,Math.round(v().end-dx*per)));
+    redraw();
+   }
+   last=e.clientX;
+  }else if(xs.length===2){ // pinch
+   const d=Math.abs(xs[0]-xs[1]);
+   if(last!=null&&last>10){
+    const f=last/d; // >1 => fingers closed => zoom out
+    v().span=Math.round(Math.max(30,Math.min(NDAYS,v().span*f)));
+    v().end=Math.max(v().span-1,Math.min(h.length-1,v().end));
+    redraw();
+   }
+   last=d;
+  }
+ };
+ cv.onwheel=e=>{e.preventDefault();
+  const f=e.deltaY>0?1.18:1/1.18;
+  v().span=Math.round(Math.max(30,Math.min(NDAYS,v().span*f)));
+  v().end=Math.max(v().span-1,Math.min(h.length-1,v().end));
+  redraw();};
+}
+
+/* ---------------- sync live ---------------- */
+async function syncLive(){
+ const btn=document.getElementById("syncBtn");btn.textContent="…";
+ try{
+  const listA=COMMODITIES.map(x=>`${x.sym}: ${x.name} in ${x.unit}`).join("; ");
+  const listB=S.macros.map(m=>`${m.sym}: ${m.name} in ${m.unit}`).join("; ");
+  const txt=await askClaude(`Search the web for the latest values of these market references. For cashew (CW) use indicative W320 kernel FOB Vietnam prices converted to USD per lb if needed. Respond ONLY with a JSON array, no prose, no markdown fences. Each element: {"sym":"...","value":number}. Use the exact units given. Items: ${listA}; ${listB}`);
+  const m=txt.match(/\[[\s\S]*\]/);const arr=JSON.parse(m?m[0]:txt);
+  arr.forEach(r=>{if(!isFinite(r.value)||r.value<=0)return;
+   if(S.prices[r.sym]!=null)S.prices[r.sym]=+r.value;
+   const mi=S.macros.findIndex(x=>x.sym===r.sym);if(mi>=0)S.macros[mi].val=+r.value;});
+  Object.keys(HCACHE).forEach(k=>delete HCACHE[k]);
+  S.note="Live via AI web search · "+new Date().toLocaleString();
+  localStorage.setItem("al_prices",JSON.stringify(S.prices));
+  localStorage.setItem("al_macros",JSON.stringify(S.macros));
+  localStorage.setItem("al_note",S.note);
+  document.getElementById("liveNote").textContent=S.note;
+  renderTape();renderMacros();renderChips();renderMain();
+ }catch(e){showErr("Live sync failed: "+e.message);}
+ btn.textContent="⟳";
+}
+
+/* ---------------- settings sheet ---------------- */
+function openSheet(){document.getElementById("sheet").classList.remove("hidden");
+ document.getElementById("apiKey").value=localStorage.getItem("al_key")||"";}
+function closeSheet(){document.getElementById("sheet").classList.add("hidden");}
+
+/* ---------------- PASSCODE AUTH ---------------- */
+const LOCK={buf:"",stage:"enter",first:""};
+async function sha(t){const d=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(t));
+ return[...new Uint8Array(d)].map(b=>b.toString(16).padStart(2,"0")).join("");}
+function salt(){let s=localStorage.getItem("al_salt");
+ if(!s){s=[...crypto.getRandomValues(new Uint8Array(16))].map(b=>b.toString(16).padStart(2,"0")).join("");
+  localStorage.setItem("al_salt",s);}return s;}
+function dots(){const el=document.getElementById("dots");
+ [...el.children].forEach((d,i)=>d.classList.toggle("on",i<LOCK.buf.length));}
+function lockUI(){
+ const has=!!localStorage.getItem("al_pin");
+ document.getElementById("lockSub").textContent=
+  LOCK.stage==="set1"?"Create a 6-digit passcode":
+  LOCK.stage==="set2"?"Re-enter the passcode to confirm":"Enter your passcode";
+ if(!has&&LOCK.stage==="enter"){LOCK.stage="set1";lockUI();return;}
+ dots();
+}
+async function pinDigit(d){
+ if(LOCK.buf.length>=6)return;LOCK.buf+=d;dots();
+ if(LOCK.buf.length<6)return;
+ const msg=document.getElementById("lockMsg"),dz=document.getElementById("dots");
+ if(LOCK.stage==="set1"){LOCK.first=LOCK.buf;LOCK.buf="";LOCK.stage="set2";lockUI();return;}
+ if(LOCK.stage==="set2"){
+  if(LOCK.buf===LOCK.first){localStorage.setItem("al_pin",await sha(salt()+LOCK.buf));unlock();}
+  else{msg.textContent="Passcodes didn't match — start again.";dz.classList.add("err");
+   setTimeout(()=>dz.classList.remove("err"),400);LOCK.buf="";LOCK.first="";LOCK.stage="set1";lockUI();}
+  return;}
+ // enter
+ if(await sha(salt()+LOCK.buf)===localStorage.getItem("al_pin"))unlock();
+ else{msg.textContent="Wrong passcode.";dz.classList.add("err");
+  setTimeout(()=>dz.classList.remove("err"),400);LOCK.buf="";dots();}
+}
+function unlock(){LOCK.buf="";document.getElementById("lockMsg").textContent="";
+ document.getElementById("lock").classList.add("hidden");
+ document.getElementById("app").classList.remove("hidden");
+ boot();}
+function relock(){document.getElementById("app").classList.add("hidden");
+ document.getElementById("lock").classList.remove("hidden");LOCK.stage="enter";LOCK.buf="";lockUI();}
+function buildPad(){
+ const pad=document.getElementById("pad");
+ const keys=["1","2","3","4","5","6","7","8","9","reset","0","del"];
+ pad.innerHTML=keys.map(k=>
+  k==="del"?`<button class="ghost" data-k="del">⌫</button>`:
+  k==="reset"?`<button class="ghost" data-k="reset">reset</button>`:
+  `<button data-k="${k}">${k}</button>`).join("");
+ pad.onclick=e=>{const k=e.target.dataset.k;if(!k)return;
+  if(k==="del"){LOCK.buf=LOCK.buf.slice(0,-1);dots();}
+  else if(k==="reset"){if(confirm("Forgot passcode? This wipes the passcode, API key and cached data on this device."))
+   {localStorage.clear();LOCK.stage="set1";LOCK.buf="";LOCK.first="";lockUI();}}
+  else pinDigit(k);};
+}
+
+/* ---------------- boot ---------------- */
+let booted=false;
+function boot(){
+ if(booted){renderTape();renderMacros();renderChips();renderMain();return;}
+ booted=true;
+ document.getElementById("liveNote").textContent=S.note;
+ renderTape();renderMacros();renderChips();renderMain();
+ document.getElementById("syncBtn").onclick=syncLive;
+ document.getElementById("setBtn").onclick=openSheet;
+ document.getElementById("closeSheet").onclick=closeSheet;
+ document.getElementById("saveKey").onclick=()=>{const v=document.getElementById("apiKey").value.trim();
+  if(v)localStorage.setItem("al_key",v);closeSheet();};
+ document.getElementById("clearKey").onclick=()=>{localStorage.removeItem("al_key");
+  document.getElementById("apiKey").value="";};
+ document.getElementById("lockNow").onclick=()=>{closeSheet();relock();};
+ document.getElementById("changePin").onclick=()=>{localStorage.removeItem("al_pin");closeSheet();relock();};
+ document.getElementById("resetApp").onclick=()=>{if(confirm("Wipe passcode, API key and cached prices?"))
+  {localStorage.clear();location.reload();}};
+ window.addEventListener("resize",()=>{if(S.tab==="overview"||S.tab==="forecast")renderMain();});
+}
+
+buildPad();lockUI();
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>
