@@ -61,13 +61,14 @@ def from_yahoo(sym):
     return normalize(sym, float(closes[-1]))
 
 def main():
-    prices, macros, errs = {}, {}, []
+    prices, macros, errs, sources = {}, {}, [], {}
     for sym in FEEDS:
         val = None
-        for fn in (from_stooq, from_yahoo):
+        for fn, label in ((from_stooq, "Stooq"), (from_yahoo, "Yahoo Finance")):
             try:
                 val = fn(sym)
                 if val:
+                    sources[sym] = label
                     break
             except Exception as e:
                 errs.append(f"{sym}:{fn.__name__}:{e.__class__.__name__}")
@@ -76,6 +77,7 @@ def main():
             continue
         (prices if sym in AGRI else macros)[sym] = val
     macros.update(MANUAL)
+    sources["FED"] = "Manual (FOMC target midpoint)"
 
     if not prices and not macros:
         print("No data fetched at all — keeping previous prices.json")
@@ -86,6 +88,7 @@ def main():
                    .strftime("%Y-%m-%d %H:%M UTC"),
         "prices": prices,
         "macros": macros,
+        "sources": sources,
         "note": "Free feed (Stooq/Yahoo). RC robusta & CW cashew have no free "
                 "exchange feed - use AI sync or broker quotes for those.",
         "errors": errs,

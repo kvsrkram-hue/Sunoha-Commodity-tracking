@@ -99,6 +99,8 @@ h1,h2,h3{font-family:Georgia,'Bitter',serif; margin:0;}
 .stats label{display:block; font-size:9.5px; text-transform:uppercase; letter-spacing:.12em; color:var(--muted);}
 .stats b{font-weight:600; font-size:12.5px;}
 
+.srcline{font-size:10.5px; color:var(--muted); margin-top:6px;}
+.srcline b{color:var(--leaf); font-weight:600;}
 .tabs{display:flex; gap:2px; overflow-x:auto; margin:12px -16px 12px; padding:0 16px;
   border-bottom:1px solid var(--line); scrollbar-width:none;}
 .tabs::-webkit-scrollbar{display:none;}
@@ -210,6 +212,7 @@ textarea.input{resize:vertical; margin-bottom:10px;}
       <h2 id="cname"></h2>
       <div class="bigprice mono" id="cprice"></div>
       <div class="stats mono" id="cstats"></div>
+      <div class="srcline" id="csrc"></div>
     </div>
     <div class="tabs" id="tabs"></div>
     <div id="tabbody"></div>
@@ -246,6 +249,25 @@ textarea.input{resize:vertical; margin-bottom:10px;}
       </div>
       <p>The passcode is hashed and stored only on this device. For multi-user cloud login,
       see the README (Firebase upgrade path).</p>
+    </div>
+    <div class="sec">
+      <label>Data &amp; sources</label>
+      <p style="margin-top:0">
+      <b>Exchange prices</b> (Arabica, Cocoa, Wheat, Corn, Soybeans) &amp; <b>macros</b>
+      (WTI, Gold, Silver, Copper, US 10-yr, DXY, USD/INR): free daily feed via GitHub
+      Actions from Stooq, falling back to Yahoo Finance — refreshed 07:00 IST, committed
+      as prices.json in your repo.<br><br>
+      <b>Robusta &amp; Cashew:</b> no free exchange feed exists (cashew has no exchange at
+      all) — updated via ⟳ AI web search, or use your broker's quote.<br><br>
+      <b>Fed Funds:</b> set manually in fetch_prices.py (moves only at FOMC).<br><br>
+      <b>News, Drivers, Regulations, Fact-check:</b> Anthropic AI with live web search;
+      sources are named inside each result.<br><br>
+      <b>India desk:</b> Coffee Board of India Daily Market Report
+      (coffeeboard.gov.in → Market Info), read via AI web search.<br><br>
+      <b>10-yr charts:</b> approximate reconstruction from public price records
+      (monthly anchors, interpolated); last point pinned to the current price.<br><br>
+      <b>Trade-flow shares:</b> approximate recent-year figures — verify with
+      UN Comtrade / ITC Trade Map.</p>
     </div>
     <div class="sec">
       <label>Data</label>
@@ -334,7 +356,8 @@ const S={
  prices:JSON.parse(localStorage.getItem("al_prices")||"null")||Object.fromEntries(COMMODITIES.map(c=>[c.sym,c.price])),
  macros:JSON.parse(localStorage.getItem("al_macros")||"null")||MACROS.map(m=>({...m})),
  note:localStorage.getItem("al_note")||"Illustrative seed snapshot — tap ⟳ for live figures.",
- drivers:{}, news:"", regs:{}, busy:{}, views:{}, cb:null
+ drivers:{}, news:"", regs:{}, busy:{}, views:{}, cb:null,
+ src:JSON.parse(localStorage.getItem("al_src")||"{}")
 };
 
 /* ---------------- helpers ---------------- */
@@ -463,6 +486,10 @@ function renderMain(){
    <div><label>30d</label><b class="${d30>=0?'up':'down'}">${d30>=0?'▲':'▼'}${Math.abs(d30).toFixed(2)}%</b></div>
    <div><label>1y hi</label><b>${fmtN(hi,c.dec)}</b></div>
    <div><label>1y lo</label><b>${fmtN(lo,c.dec)}</b></div>`;
+ const sc=S.src[c.sym];
+ document.getElementById("csrc").innerHTML=sc
+  ?`Source: <b>${sc.s}</b> · ${sc.t}`
+  :`Source: <b>Seed value</b> — illustrative until the daily feed or AI sync updates it`;
  document.getElementById("tabs").innerHTML=TABS.map(([id,l])=>
   `<button class="tab ${S.tab===id?'on':''}" data-t="${id}">${l}</button>`).join("");
  document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{S.tab=b.dataset.t;renderMain();});
@@ -698,9 +725,13 @@ async function syncLive(){
   const listB=S.macros.map(m=>`${m.sym}: ${m.name} in ${m.unit}`).join("; ");
   const txt=await askClaude(`Search the web for the latest values of these market references. For cashew (CW) use indicative W320 kernel FOB Vietnam prices converted to USD per lb if needed. Respond ONLY with a JSON array, no prose, no markdown fences. Each element: {"sym":"...","value":number}. Use the exact units given. Items: ${listA}; ${listB}`);
   const m=txt.match(/\[[\s\S]*\]/);const arr=JSON.parse(m?m[0]:txt);
+  const now=new Date().toLocaleString();
   arr.forEach(r=>{if(!isFinite(r.value)||r.value<=0)return;
-   if(S.prices[r.sym]!=null)S.prices[r.sym]=+r.value;
-   const mi=S.macros.findIndex(x=>x.sym===r.sym);if(mi>=0)S.macros[mi].val=+r.value;});
+   let hit=false;
+   if(S.prices[r.sym]!=null){S.prices[r.sym]=+r.value;hit=true;}
+   const mi=S.macros.findIndex(x=>x.sym===r.sym);if(mi>=0){S.macros[mi].val=+r.value;hit=true;}
+   if(hit)S.src[r.sym]={s:"AI web search",t:now};});
+  localStorage.setItem("al_src",JSON.stringify(S.src));
   Object.keys(HCACHE).forEach(k=>delete HCACHE[k]);
   S.note="Live via AI web search · "+new Date().toLocaleString();
   localStorage.setItem("al_prices",JSON.stringify(S.prices));
@@ -777,16 +808,19 @@ async function loadFeed(){
   const j=await r.json();
   let touched=false;
   Object.entries(j.prices||{}).forEach(([k,v])=>{
-   if(S.prices[k]!=null&&isFinite(v)&&v>0){S.prices[k]=+v;touched=true;}});
+   if(S.prices[k]!=null&&isFinite(v)&&v>0){S.prices[k]=+v;touched=true;
+    S.src[k]={s:(j.sources&&j.sources[k])||"Free feed",t:j.updated||""};}});
   Object.entries(j.macros||{}).forEach(([k,v])=>{
    const i=S.macros.findIndex(m=>m.sym===k);
-   if(i>=0&&isFinite(v)&&v>0){S.macros[i].val=+v;touched=true;}});
+   if(i>=0&&isFinite(v)&&v>0){S.macros[i].val=+v;touched=true;
+    S.src[k]={s:(j.sources&&j.sources[k])||"Free feed",t:j.updated||""};}});
   if(touched){
    Object.keys(HCACHE).forEach(k=>delete HCACHE[k]);
    S.note="Auto-updated "+(j.updated||"")+" · free feed (robusta & cashew via AI sync)";
    localStorage.setItem("al_prices",JSON.stringify(S.prices));
    localStorage.setItem("al_macros",JSON.stringify(S.macros));
    localStorage.setItem("al_note",S.note);
+   localStorage.setItem("al_src",JSON.stringify(S.src));
    const n=document.getElementById("liveNote");if(n)n.textContent=S.note;
    renderTape();renderMacros();renderChips();renderMain();
   }
