@@ -1,20 +1,20 @@
 {
- "updated": "2026-11-10 08:47 UTC",
+ "updated": "2026-11-11 07:59 UTC",
  "prices": {
-  "KC": 2.736,
-  "CC": 5004.0,
-  "ZW": 5.9125,
-  "ZC": 4.4125,
-  "ZS": 11.9475
+  "KC": 2.714,
+  "CC": 4742.0,
+  "ZW": 5.995,
+  "ZC": 4.49,
+  "ZS": 12.25
  },
  "macros": {
-  "CL": 84.72,
-  "GC": 4126.2998,
-  "SI": 52.855,
-  "HG": 6.3175,
-  "US10Y": 4.864,
-  "DXY": 101.532,
-  "USDINR": 93.918,
+  "CL": 86.35,
+  "GC": 4066.8999,
+  "SI": 52.97,
+  "HG": 6.3195,
+  "US10Y": 4.983,
+  "DXY": 102.372,
+  "USDINR": 93.67,
   "FED": 3.63
  },
  "sources": {
@@ -34,17 +34,17 @@
  },
  "note": "Free feed (Stooq/Yahoo). RC robusta & CW cashew have no free exchange feed - use AI sync or broker quotes for those.",
  "errors": [
-  "KC:from_stooq:URLError",
-  "CC:from_stooq:URLError",
-  "ZW:from_stooq:URLError",
-  "ZC:from_stooq:URLError",
-  "ZS:from_stooq:URLError",
-  "CL:from_stooq:URLError",
-  "GC:from_stooq:URLError",
-  "SI:from_stooq:URLError",
-  "HG:from_stooq:URLError",
-  "US10Y:from_stooq:URLError",
-  "DXY:from_stooq:URLError",
-  "USDINR:from_stooq:URLError"
+  "KC:from_stooq:HTTPError",
+  "CC:from_stooq:HTTPError",
+  "ZW:from_stooq:HTTPError",
+  "ZC:from_stooq:HTTPError",
+  "ZS:from_stooq:HTTPError",
+  "CL:from_stooq:HTTPError",
+  "GC:from_stooq:HTTPError",
+  "SI:from_stooq:HTTPError",
+  "HG:from_stooq:HTTPError",
+  "US10Y:from_stooq:HTTPError",
+  "DXY:from_stooq:HTTPError",
+  "USDINR:from_stooq:HTTPError"
  ]
 }
